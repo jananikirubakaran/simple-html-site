@@ -10,19 +10,27 @@ variables:
 
 stages:
 - stage: Deploy
-  displayName: 'Deploy to AWS EC2'
+  displayName: 'Deploy to EC2'
   jobs:
   - job: CopyHTML
     displayName: 'Copy HTML Files to EC2'
     steps:
 
+    # Install the PEM key securely
     - task: InstallSSHKey@0
       name: InstallEC2Key
       inputs:
-        sshPublicKey: ''  # Leave blank since we're only using the private key
-        sshKeySecureFile: 'app.pem'  # Make sure this matches the file name uploaded to Secure Files
+        sshPublicKey: ''  # not needed
+        sshKeySecureFile: 'app.pem'  # MUST match exact name in Secure Files
         knownHostsEntry: '$(EC2_HOST)'
 
+    # Confirm the key is downloaded
+    - script: |
+        echo "Checking temp directory for PEM file..."
+        ls -l $(Agent.TempDirectory)
+      displayName: 'Debug: List Agent.TempDirectory'
+
+    # Copy HTML files
     - script: |
         echo "Copying files to EC2..."
         scp -i $(Agent.TempDirectory)/app.pem -o StrictHostKeyChecking=no -r *.html $(EC2_USER)@$(EC2_HOST):/var/www/html/site
