@@ -22,5 +22,5 @@ stages:
 
     - script: |
         echo "Copying files to EC2"
-        scp -i $(Agent.TempDirectory)/your-key.pem -o StrictHostKeyChecking=no -r * $(EC2_USER)@$(EC2_HOST):/var/www/html/site
+        scp -i $(Agent.TempDirectory)/app.pem -o StrictHostKeyChecking=no -r * $(EC2_USER)@$(EC2_HOST):/var/www/html/site
       displayName: 'Deploy HTML files to EC2'
