@@ -7,20 +7,23 @@ pool:
 variables:
   EC2_HOST: '44.211.44.22'
   EC2_USER: 'ec2-user'
-  PRIVATE_KEY: '$(privateKey)'
 
 stages:
 - stage: Deploy
+  displayName: 'Deploy to AWS EC2'
   jobs:
   - job: CopyHTML
+    displayName: 'Copy HTML Files to EC2'
     steps:
+
     - task: InstallSSHKey@0
+      name: InstallEC2Key
       inputs:
-        sshPublicKey: ''
-        sshKeySecureFile: 'app.pem'
+        sshPublicKey: ''  # Leave blank since we're only using the private key
+        sshKeySecureFile: 'app.pem'  # Make sure this matches the file name uploaded to Secure Files
         knownHostsEntry: '$(EC2_HOST)'
 
     - script: |
-        echo "Copying files to EC2"
-        scp -i $(Agent.TempDirectory)/app.pem -o StrictHostKeyChecking=no -r * $(EC2_USER)@$(EC2_HOST):/var/www/html/site
-      displayName: 'Deploy HTML files to EC2'
+        echo "Copying files to EC2..."
+        scp -i $(Agent.TempDirectory)/app.pem -o StrictHostKeyChecking=no -r *.html $(EC2_USER)@$(EC2_HOST):/var/www/html/site
+      displayName: 'SCP HTML Files to EC2'
