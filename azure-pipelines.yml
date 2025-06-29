@@ -1,0 +1,26 @@
+trigger:
+- main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  EC2_HOST: '<your-ec2-public-ip>'
+  EC2_USER: 'ec2-user'
+  PRIVATE_KEY: '$(privateKey)'
+
+stages:
+- stage: Deploy
+  jobs:
+  - job: CopyHTML
+    steps:
+    - task: InstallSSHKey@0
+      inputs:
+        sshPublicKey: ''
+        sshKeySecureFile: 'your-key.pem'
+        knownHostsEntry: '$(EC2_HOST)'
+
+    - script: |
+        echo "Copying files to EC2"
+        scp -i $(Agent.TempDirectory)/your-key.pem -o StrictHostKeyChecking=no -r * $(EC2_USER)@$(EC2_HOST):/var/www/html/site
+      displayName: 'Deploy HTML files to EC2'
