@@ -6,47 +6,21 @@ pool:
 
 variables:
   EC2_USER: 'ec2-user'
-  EC2_HOST: '$(ec2Ip)'                          # Set in pipeline UI
-  SONARQUBE_PROJECT_KEY: 'simple-html-site'
-  SONARQUBE_HOST_URL: 'http://3.82.109.36:9000'
-  SONAR_TOKEN: '$(sonarToken)'                  # Set as secret in pipeline UI
+  EC2_HOST: '$(ec2Ip)'  # Set as variable in pipeline UI
 
 stages:
-- stage: AnalyzeAndDeploy
+- stage: DeployToEC2
   jobs:
-  - job: RunPipeline
+  - job: Deploy
     steps:
     - checkout: self
 
-    - script: |
-        echo "== Installing Java 17 =="
-        sudo apt-get update
-        sudo apt-get install -y openjdk-17-jdk wget unzip
-
-        echo "== Setting Java 17 =="
-        export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
-        export PATH=$JAVA_HOME/bin:$PATH
-        java -version
-
-        echo "== Downloading SonarScanner =="
-        wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-4.8.0.2856-linux.zip
-        unzip sonar-scanner-cli-4.8.0.2856-linux.zip
-        export PATH=$(pwd)/sonar-scanner-4.8.0.2856-linux/bin:$PATH
-
-        echo "== Running SonarScanner =="
-        sonar-scanner \
-          -Dsonar.projectKey=$SONARQUBE_PROJECT_KEY \
-          -Dsonar.sources=. \
-          -Dsonar.host.url=$SONARQUBE_HOST_URL \
-          -Dsonar.login=$SONAR_TOKEN
-      displayName: 'Run SonarScanner'
-
     - task: InstallSSHKey@0
       inputs:
-        sshKeySecureFile: 'app.pem'
+        sshKeySecureFile: 'app.pem'       # Make sure this is uploaded in Secure Files
         knownHostsEntry: '$(EC2_HOST)'
 
     - script: |
-        echo "== Deploying HTML to EC2 =="
+        echo "Deploying HTML files to EC2..."
         scp -i $(Agent.TempDirectory)/app.pem -o StrictHostKeyChecking=no -r *.html $(EC2_USER)@$(EC2_HOST):/var/www/html/site
-      displayName: 'Deploy HTML to EC2'
+      displayName: 'Copy HTML Files to EC2'
