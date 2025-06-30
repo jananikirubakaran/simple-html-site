@@ -5,22 +5,28 @@ pool:
   vmImage: 'ubuntu-latest'
 
 variables:
+  EC2_HOST: '52.202.2.0'
   EC2_USER: 'ec2-user'
-  EC2_HOST: '$(ec2Ip)'  # Set as variable in pipeline UI
 
 stages:
-- stage: DeployToEC2
+- stage: Deploy
   jobs:
-  - job: Deploy
+  - job: CopyHTML
     steps:
-    - checkout: self
 
+    # Step 1: Install SSH key to authenticate to EC2
     - task: InstallSSHKey@0
       inputs:
-        sshKeySecureFile: 'app.pem'       # Make sure this is uploaded in Secure Files
+        sshKeySecureFile: 'app.pem'
         knownHostsEntry: '$(EC2_HOST)'
 
+    # Step 2: (Optional) Debug: show temp folder
     - script: |
-        echo "Deploying HTML files to EC2..."
+        ls -l $(Agent.TempDirectory)
+      displayName: 'Debug: Show PEM file'
+
+    # Step 3: Deploy HTML files via SCP
+    - script: |
+        echo "Deploying files to EC2..."
         scp -i $(Agent.TempDirectory)/app.pem -o StrictHostKeyChecking=no -r *.html $(EC2_USER)@$(EC2_HOST):/var/www/html/site
-      displayName: 'Copy HTML Files to EC2'
+      displayName: 'Copy HTML to EC2'
