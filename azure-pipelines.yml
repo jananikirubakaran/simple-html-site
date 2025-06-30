@@ -24,6 +24,7 @@ stages:
         extraProperties: |
           sonar.verbose=true
           sonar.log.level=DEBUG
+        extraArgs: '-Dsonar.branch.name='
 
     - task: SonarQubeAnalyze@6
 
