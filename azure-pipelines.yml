@@ -1,39 +1,52 @@
 trigger:
-- main
+  branches:
+    include:
+    - main
+pr: none
 
 pool:
   vmImage: 'ubuntu-latest'
 
 variables:
   EC2_USER: 'ec2-user'
-  EC2_HOST: '$(ec2Ip)'  # Set in pipeline variables
+  EC2_HOST: '$(ec2Ip)'          # Set this in pipeline variables securely
   SONARQUBE_PROJECT_KEY: 'simple-html-site'
+  SONARQUBE_HOST_URL: 'http://3.82.109.36:9000'  # Replace with your SonarQube URL
+  SONARQUBE_TOKEN: '$(sonarToken)'    # Set as secret pipeline variable
 
 stages:
 - stage: AnalyzeAndDeploy
   jobs:
-  - job: RunPipeline
+  - job: SonarQubeAndDeploy
     steps:
-    - task: SonarQubePrepare@6
-      inputs:
-        SonarQube: 'SonarQubeService'    # Your SonarQube service connection name
-        scannerMode: 'CLI'
-        configMode: 'manual'
-        cliProjectKey: '$(SONARQUBE_PROJECT_KEY)'
-        cliSources: '.'
-        extraProperties: |
-          sonar.verbose=true
-          sonar.log.level=DEBUG
 
-    - task: SonarQubeAnalyze@6
+    - script: |
+        echo "Installing Java 17..."
+        sudo apt-get update
+        sudo apt-get install -y openjdk-17-jdk
 
-    - task: SonarQubePublish@6
-      inputs:
-        pollingTimeoutSec: '300'
+        echo "Java version:"
+        java -version
+
+        echo "Installing sonar-scanner..."
+        sudo apt-get install -y wget unzip
+        wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-4.8.0.2856-linux.zip
+        unzip sonar-scanner-cli-4.8.0.2856-linux.zip
+        export PATH=$PATH:$(pwd)/sonar-scanner-4.8.0.2856-linux/bin
+
+        echo "Running SonarQube Scanner..."
+        sonar-scanner \
+          -Dsonar.projectKey=$(SONARQUBE_PROJECT_KEY) \
+          -Dsonar.sources=. \
+          -Dsonar.host.url=$(SONARQUBE_HOST_URL) \
+          -Dsonar.login=$(SONARQUBE_TOKEN) \
+          -Dsonar.branch.name=""
+
+      displayName: 'Install Java 17 and Run SonarQube Scanner'
 
     - task: InstallSSHKey@0
       inputs:
-        sshKeySecureFile: 'app.pem'       # Your uploaded private key in Secure Files
+        sshKeySecureFile: 'app.pem'       # Upload your EC2 private key to Secure Files
         knownHostsEntry: '$(EC2_HOST)'
 
     - script: |
