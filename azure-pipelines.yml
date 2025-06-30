@@ -27,10 +27,10 @@ stages:
         cliSources: '.'  # Analyze all code in the repo
 
     # Step 2: Perform the analysis
-    - task: SonarQubeAnalyze@5
+    - task: SonarQubeAnalyze@6
 
     # Step 3: Publish analysis results to SonarQube dashboard
-    - task: SonarQubePublish@5
+    - task: SonarQubePublish@6
       inputs:
         pollingTimeoutSec: '300'
 
