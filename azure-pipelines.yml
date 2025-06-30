@@ -6,7 +6,7 @@ pool:
 
 variables:
   EC2_USER: 'ec2-user'
-  EC2_HOST: '$(ec2Ip)'                # Set this in your pipeline variables
+  EC2_HOST: '$(ec2Ip)'                # Set this in pipeline variables before running
   SONARQUBE_PROJECT_KEY: 'simple-html-site'
 
 stages:
@@ -15,35 +15,34 @@ stages:
   - job: RunPipeline
     steps:
 
-    # Step 1: Prepare SonarQube analysis - disable branch analysis for Community Edition
+    # Step 1: Prepare SonarQube analysis without branch name or preview mode
     - task: SonarQubePrepare@6
       inputs:
-        SonarQube: 'SonarQubeService'   # Your SonarQube service connection
+        SonarQube: 'SonarQubeService'   # SonarQube service connection name in Azure DevOps
         scannerMode: 'CLI'
         configMode: 'manual'
         cliProjectKey: '$(SONARQUBE_PROJECT_KEY)'
         cliSources: '.'
         extraProperties: |
-          sonar.analysis.mode=preview      # Use preview mode to avoid branch analysis errors
           sonar.verbose=true
           sonar.log.level=DEBUG
 
-    # Step 2: Run the analysis
+    # Step 2: Run SonarQube analysis
     - task: SonarQubeAnalyze@6
 
-    # Step 3: Publish the results
+    # Step 3: Publish SonarQube results
     - task: SonarQubePublish@6
       inputs:
         pollingTimeoutSec: '300'
 
-    # Step 4: Install SSH key for EC2 access
+    # Step 4: Install SSH private key to connect to EC2
     - task: InstallSSHKey@0
       inputs:
-        sshKeySecureFile: 'app.pem'       # Your uploaded private key
+        sshKeySecureFile: 'app.pem'       # Upload your private key as Secure File
         knownHostsEntry: '$(EC2_HOST)'
 
-    # Step 5: Deploy HTML files to EC2
+    # Step 5: Deploy HTML files to EC2 using scp
     - script: |
-        echo "Deploying HTML files to EC2..."
+        echo "Deploying HTML files to EC2 at /var/www/html/site..."
         scp -i $(Agent.TempDirectory)/app.pem -o StrictHostKeyChecking=no -r *.html $(EC2_USER)@$(EC2_HOST):/var/www/html/site
       displayName: 'Deploy HTML to EC2'
