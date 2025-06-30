@@ -1,54 +1,57 @@
 trigger:
-- main  # Pipeline triggers on pushes to main branch
+- main
 
 pool:
   vmImage: 'ubuntu-latest'
 
 variables:
   EC2_USER: 'ec2-user'
-  EC2_HOST: '$(ec2Ip)'           # EC2 IP stored securely as pipeline variable
+  EC2_HOST: '$(ec2Ip)'           # Set this as a pipeline variable in Azure DevOps
   SONARQUBE_PROJECT_KEY: 'simple-html-site'
 
 stages:
 - stage: AnalyzeAndDeploy
-  displayName: 'Analyze Code and Deploy Website'
+  displayName: 'Run SonarQube Analysis and Deploy to EC2'
   jobs:
-  - job: AnalyzeAndCopy
-    displayName: 'Run SonarQube Scan and Deploy to EC2'
+  - job: AnalyzeAndDeployJob
+    displayName: 'SonarQube Scan and Deploy'
     steps:
 
-    # Prepare SonarQube analysis without branch analysis (Community Edition)
+    # Force the build branch variable to main to avoid branch analysis errors
+    - script: |
+        echo "##vso[task.setvariable variable=BUILD_SOURCEBRANCH]refs/heads/main"
+      displayName: 'Force build branch to main'
+
+    # Prepare SonarQube scanner (no branch info set)
     - task: SonarQubePrepare@6
       inputs:
-        SonarQube: 'SonarQubeService'  # Your service connection name
+        SonarQube: 'SonarQubeService'  # Your SonarQube service connection name
         scannerMode: 'CLI'
         configMode: 'manual'
         cliProjectKey: '$(SONARQUBE_PROJECT_KEY)'
-        cliSources: '.'  # Analyze all source files in repo
-        # Do NOT add sonar.branch.name here for Community Edition
+        cliSources: '.'
 
-    # Run the code analysis
+    # Run SonarQube analysis
     - task: SonarQubeAnalyze@6
 
-    # Publish the SonarQube analysis results to the dashboard
+    # Publish SonarQube results
     - task: SonarQubePublish@6
       inputs:
         pollingTimeoutSec: '300'
 
-    # Install SSH key for secure connection to EC2
+    # Install SSH key for EC2
     - task: InstallSSHKey@0
       inputs:
-        sshKeySecureFile: 'app.pem'        # Secure file uploaded in Azure DevOps
-        knownHostsEntry: '$(EC2_HOST)'     # Avoid SSH prompt
+        sshKeySecureFile: 'app.pem'
+        knownHostsEntry: '$(EC2_HOST)'
 
-    # Optional: Debug PEM file presence
+    # Debug PEM presence (optional)
     - script: |
-        echo "Listing PEM file in temp directory"
         ls -l $(Agent.TempDirectory)
-      displayName: 'Debug: List PEM file'
+      displayName: 'Check SSH key file presence'
 
     # Deploy HTML files to EC2 using SCP
     - script: |
         echo "Deploying HTML files to EC2..."
         scp -i $(Agent.TempDirectory)/app.pem -o StrictHostKeyChecking=no -r *.html $(EC2_USER)@$(EC2_HOST):/var/www/html/site
-      displayName: 'Deploy HTML files to EC2 via SCP'
+      displayName: 'Deploy HTML to EC2'
