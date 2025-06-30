@@ -1,36 +1,53 @@
 trigger:
-- main
+- main  # Automatically run when changes are pushed to main branch
 
 pool:
   vmImage: 'ubuntu-latest'
 
 variables:
-  EC2_HOST: '52.202.2.0'
   EC2_USER: 'ec2-user'
+  EC2_HOST: '$(ec2Ip)'           # EC2 IP stored as a pipeline variable (hidden in UI)
+  SONARQUBE_PROJECT_KEY: 'simple-html-site'  # Define in SonarQube UI
 
 stages:
-- stage: Deploy
-  displayName: 'Deploy to EC2'
+- stage: AnalyzeAndDeploy
+  displayName: 'Analyze Code and Deploy Website'
   jobs:
-  - job: CopyHTML
-    displayName: 'Copy HTML Files to EC2'
+  - job: AnalyzeAndCopy
+    displayName: 'Run SonarQube Scan and Deploy to EC2'
     steps:
 
-    # Install the PEM key securely
-    - task: InstallSSHKey@0
-      name: InstallEC2Key
+    # Step 1: Prepare SonarQube analysis (Connect to SonarQube instance)
+    - task: SonarQubePrepare@5
       inputs:
-        sshKeySecureFile: 'app.pem'  
-        knownHostsEntry: '$(EC2_HOST)'
+        SonarQube: 'SonarQubeService'  # Name of the service connection you created
+        scannerMode: 'CLI'
+        configMode: 'manual'
+        cliProjectKey: '$(SONARQUBE_PROJECT_KEY)'
+        cliSources: '.'  # Analyze all code in the repo
 
-    # Confirm the key is downloaded
+    # Step 2: Perform the analysis
+    - task: SonarQubeAnalyze@5
+
+    # Step 3: Publish analysis results to SonarQube dashboard
+    - task: SonarQubePublish@5
+      inputs:
+        pollingTimeoutSec: '300'
+
+    # Step 4: Install SSH key for secure access to EC2
+    - task: InstallSSHKey@0
+      inputs:
+        sshKeySecureFile: 'app.pem'  # Ensure this is uploaded and authorized in Azure DevOps
+        knownHostsEntry: '$(EC2_HOST)'  # Avoids manual confirmation prompt
+
+    # Step 5: Optional - Debug the temp directory to verify PEM file exists
     - script: |
-        echo "Checking temp directory for PEM file..."
+        echo "Listing contents of temp directory"
         ls -l $(Agent.TempDirectory)
-      displayName: 'Debug: List Agent.TempDirectory'
+      displayName: 'Debug: List contents of $(Agent.TempDirectory)'
 
-    # Copy HTML files
+    # Step 6: Deploy HTML files to EC2 using SCP
     - script: |
-        echo "Copying files to EC2..."
+        echo "Deploying files to EC2..."
         scp -i $(Agent.TempDirectory)/app.pem -o StrictHostKeyChecking=no -r *.html $(EC2_USER)@$(EC2_HOST):/var/www/html/site
-      displayName: 'SCP HTML Files to EC2'
+      displayName: 'Deploy HTML to EC2 via SCP'
