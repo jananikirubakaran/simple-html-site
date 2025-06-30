@@ -5,7 +5,7 @@ pool:
   vmImage: 'ubuntu-latest'
 
 variables:
-  EC2_HOST: '44.211.44.22'
+  EC2_HOST: '52.202.2.0'
   EC2_USER: 'ec2-user'
 
 stages:
@@ -20,8 +20,7 @@ stages:
     - task: InstallSSHKey@0
       name: InstallEC2Key
       inputs:
-        sshPublicKey: ''  # not needed
-        sshKeySecureFile: 'app.pem'  # MUST match exact name in Secure Files
+        sshKeySecureFile: 'app.pem'  
         knownHostsEntry: '$(EC2_HOST)'
 
     # Confirm the key is downloaded
