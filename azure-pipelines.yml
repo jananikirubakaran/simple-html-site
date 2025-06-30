@@ -6,30 +6,31 @@ pool:
 
 variables:
   EC2_USER: 'ec2-user'
-  EC2_HOST: '$(ec2Ip)'           # Set this as a pipeline variable in Azure DevOps
+  EC2_HOST: '$(ec2Ip)'          # Set this securely in pipeline variables
   SONARQUBE_PROJECT_KEY: 'simple-html-site'
 
 stages:
 - stage: AnalyzeAndDeploy
-  displayName: 'Run SonarQube Analysis and Deploy to EC2'
   jobs:
-  - job: AnalyzeAndDeployJob
-    displayName: 'SonarQube Scan and Deploy'
+  - job: ScanAndDeploy
     steps:
 
-    # Force the build branch variable to main to avoid branch analysis errors
+    # Force build branch to main to avoid any implicit branch analysis
     - script: |
         echo "##vso[task.setvariable variable=BUILD_SOURCEBRANCH]refs/heads/main"
       displayName: 'Force build branch to main'
 
-    # Prepare SonarQube scanner (no branch info set)
+    # Prepare SonarQube analysis - NO branch name set
     - task: SonarQubePrepare@6
       inputs:
-        SonarQube: 'SonarQubeService'  # Your SonarQube service connection name
+        SonarQube: 'SonarQubeService'   # Replace with your service connection name
         scannerMode: 'CLI'
         configMode: 'manual'
         cliProjectKey: '$(SONARQUBE_PROJECT_KEY)'
         cliSources: '.'
+        extraProperties: |
+          sonar.verbose=true
+          sonar.log.level=DEBUG
 
     # Run SonarQube analysis
     - task: SonarQubeAnalyze@6
@@ -39,18 +40,18 @@ stages:
       inputs:
         pollingTimeoutSec: '300'
 
-    # Install SSH key for EC2
+    # Install SSH Key for EC2
     - task: InstallSSHKey@0
       inputs:
-        sshKeySecureFile: 'app.pem'
+        sshKeySecureFile: 'app.pem'        # Your uploaded secure file
         knownHostsEntry: '$(EC2_HOST)'
 
-    # Debug PEM presence (optional)
+    # Debug SSH key presence (optional)
     - script: |
         ls -l $(Agent.TempDirectory)
-      displayName: 'Check SSH key file presence'
+      displayName: 'Check SSH key presence'
 
-    # Deploy HTML files to EC2 using SCP
+    # Deploy HTML files to EC2 via SCP
     - script: |
         echo "Deploying HTML files to EC2..."
         scp -i $(Agent.TempDirectory)/app.pem -o StrictHostKeyChecking=no -r *.html $(EC2_USER)@$(EC2_HOST):/var/www/html/site
