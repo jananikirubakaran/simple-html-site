@@ -18,7 +18,7 @@ stages:
     steps:
 
     # Step 1: Prepare SonarQube analysis (Connect to SonarQube instance)
-    - task: SonarQubePrepare@5
+    - task: SonarQubePrepare@6
       inputs:
         SonarQube: 'SonarQubeService'  # Name of the service connection you created
         scannerMode: 'CLI'
