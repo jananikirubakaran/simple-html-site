@@ -21,9 +21,14 @@ stages:
     steps:
 
     - script: |
-        echo "Installing sonar-scanner..."
-        # Install sonar-scanner (Ubuntu example)
+        echo "Installing Java 17..."
         sudo apt-get update
+        sudo apt-get install -y openjdk-17-jdk
+
+        echo "Java version:"
+        java -version
+
+        echo "Installing sonar-scanner..."
         sudo apt-get install -y wget unzip
         wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-4.8.0.2856-linux.zip
         unzip sonar-scanner-cli-4.8.0.2856-linux.zip
@@ -35,9 +40,9 @@ stages:
           -Dsonar.sources=. \
           -Dsonar.host.url=$(SONARQUBE_HOST_URL) \
           -Dsonar.login=$(SONARQUBE_TOKEN) \
-          -Dsonar.branch.name=""   # Disable branch name to avoid errors
+          -Dsonar.branch.name=""
 
-      displayName: 'Run SonarQube Scanner'
+      displayName: 'Install Java 17 and Run SonarQube Scanner'
 
     - task: InstallSSHKey@0
       inputs:
