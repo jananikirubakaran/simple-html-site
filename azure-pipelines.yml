@@ -1,9 +1,6 @@
 trigger:
 - main
 
-variables:
-  SONAR_TOKEN: $(SONAR_TOKEN)
-
 pool:
   vmImage: 'ubuntu-latest'
 
