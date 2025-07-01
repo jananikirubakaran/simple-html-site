@@ -8,13 +8,17 @@ pool:
   vmImage: 'ubuntu-latest'
 
 steps:
-# === Install SonarScanner CLI ===
+# === Install Java 17 & SonarScanner CLI ===
 - script: |
+    echo "🔵 Installing Java 17 and SonarScanner CLI"
     sudo apt-get update
-    sudo apt-get install -y unzip openjdk-17-jdk
+    sudo apt-get install -y unzip openjdk-17-jdk wget
+
     wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
     unzip sonar-scanner-cli-5.0.1.3006-linux.zip
     export PATH=$(pwd)/sonar-scanner-5.0.1.3006-linux/bin:$PATH
+
+    echo "🔵 Checking token value (should be masked): $SONAR_TOKEN"
 
     sonar-scanner \
       -Dsonar.projectKey=simple-cicd-demo \
@@ -23,6 +27,8 @@ steps:
       -Dsonar.host.url=http://3.83.69.81:9000 \
       -Dsonar.login=$SONAR_TOKEN
   displayName: 'Run SonarQube scan manually'
+  env:
+    SONAR_TOKEN: $(SONAR_TOKEN)
 
 # === Download Secure SSH Key ===
 - task: DownloadSecureFile@1
@@ -30,8 +36,9 @@ steps:
   inputs:
     secureFile: 'app.pem'
 
-# === Copy Files to Destination EC2 ===
+# === Copy files to destination EC2 ===
 - script: |
+    echo "🔵 Deploying HTML files to destination EC2"
     chmod 600 $(GetSSHKey.secureFilePath)
     scp -o StrictHostKeyChecking=no -i $(GetSSHKey.secureFilePath) *.html ec2-user@<DEST_INST_IP>:/var/www/html/
   displayName: 'Deploy files to EC2 via SSH'
