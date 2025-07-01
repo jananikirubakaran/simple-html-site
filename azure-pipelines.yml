@@ -18,6 +18,50 @@ stages:
     steps:
     - checkout: self
 
-    # Optional: Show file structure for debugging
+    # ✅ Show file tree before analysis (Fix applied)
     - script: |
-        echo "=== W
+        echo "=== Workspace file tree ==="
+        ls -lR
+      displayName: 'List workspace files'
+
+    # ✅ SonarQube Setup (Community Edition Compatible)
+    - task: SonarQubePrepare@5
+      inputs:
+        SonarQube: 'MySonarQubeConnection'   # 🔁 Replace with your real service connection name
+        scannerMode: 'CLI'
+        configMode: 'manual'
+        cliProjectKey: 'simple-cicd-demo'
+        cliSources: '.'
+        extraProperties: |
+          sonar.verbose=true
+          sonar.branch.name=   # ❗ Important: Disable branch scanning (Community Edition)
+
+    # ✅ Run SonarQube Analysis
+    - task: SonarQubeAnalyze@5
+      displayName: 'Run SonarQube Analysis'
+
+    # ✅ Publish SonarQube Results
+    - task: SonarQubePublish@5
+      inputs:
+        pollingTimeoutSec: '300'
+      displayName: 'Publish SonarQube Results'
+
+    # ✅ Copy static files to EC2 destination instance
+    - task: CopyFilesOverSSH@0
+      inputs:
+        sshEndpoint: 'ec2-dest-ssh'         # 🔁 Replace with your EC2 SSH service connection name
+        sourceFolder: '$(Build.SourcesDirectory)'
+        contents: '**/*'
+        targetFolder: '/var/www/html'
+        cleanTargetFolder: true
+        overwrite: true
+      displayName: 'Copy files to EC2 destination'
+
+    # ✅ Restart Apache on EC2 after deployment
+    - task: SSH@0
+      inputs:
+        sshEndpoint: 'ec2-dest-ssh'
+        runOptions: 'commands'
+        commands: |
+          sudo systemctl restart httpd
+      displayName: 'Restart Apache on EC2'
