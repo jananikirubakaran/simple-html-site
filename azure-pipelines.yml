@@ -17,6 +17,7 @@ steps:
     cliProjectName: 'simple-cicd-demo'
     extraProperties: |
       sonar.sources=.
+      sonar.branch.name=
 
 - task: SonarQubeAnalyze@5
 
