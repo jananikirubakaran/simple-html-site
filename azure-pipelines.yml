@@ -1,32 +1,56 @@
 trigger:
-- main
-
-pool:
-  vmImage: 'ubuntu-latest'
+  branches:
+    include:
+      - main
 
 variables:
-  EC2_HOST: '52.202.2.0'
-  EC2_USER: 'ec2-user'
+  sonarProjectKey: 'simple-cicd-demo'
 
 stages:
-- stage: Deploy
+- stage: BuildAndDeploy
+  displayName: 'SonarQube Scan and Deploy'
   jobs:
-  - job: CopyHTML
+  - job: ScanAndDeploy
+    displayName: 'Run SonarQube and Deploy to EC2'
+    pool:
+      vmImage: 'ubuntu-latest'
+
     steps:
+    - checkout: self
 
-    # Step 1: Install SSH key to authenticate to EC2
-    - task: InstallSSHKey@0
+    # Prepare SonarQube analysis (uses service connection)
+    - task: SonarQubePrepare@5
       inputs:
-        sshKeySecureFile: 'app.pem'
-        knownHostsEntry: '$(EC2_HOST)'
+        SonarQube: 'MySonarQubeConnection'   # Your SonarQube service connection name
+        scannerMode: 'CLI'
+        configMode: 'manual'
+        cliProjectKey: $(sonarProjectKey)
+        cliSources: '.'
 
-    # Step 2: (Optional) Debug: show temp folder
-    - script: |
-        ls -l $(Agent.TempDirectory)
-      displayName: 'Debug: Show PEM file'
+    # Run SonarQube analysis
+    - task: SonarQubeAnalyze@5
 
-    # Step 3: Deploy HTML files via SCP
-    - script: |
-        echo "Deploying files to EC2..."
-        scp -i $(Agent.TempDirectory)/app.pem -o StrictHostKeyChecking=no -r *.html $(EC2_USER)@$(EC2_HOST):/var/www/html/site
-      displayName: 'Copy HTML to EC2'
+    # Publish SonarQube results
+    - task: SonarQubePublish@5
+      inputs:
+        pollingTimeoutSec: '300'
+
+    # Copy files to EC2 dest_inst
+    - task: CopyFilesOverSSH@0
+      inputs:
+        sshEndpoint: 'ec2-dest-ssh'         # Your SSH service connection name
+        sourceFolder: '$(Build.SourcesDirectory)'
+        contents: '**/*'
+        targetFolder: '/var/www/html'
+        cleanTargetFolder: true
+        overwrite: true
+      displayName: 'Copy files to EC2 destination'
+
+    # Restart Apache on EC2
+    - task: SSH@0
+      inputs:
+        sshEndpoint: 'ec2-dest-ssh'
+        runOptions: 'commands'
+        commands: |
+          sudo systemctl restart httpd
+      displayName: 'Restart Apache on EC2'
