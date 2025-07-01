@@ -5,7 +5,6 @@ pool:
   vmImage: 'ubuntu-latest'
 
 steps:
-# === Install Java 17 & SonarScanner CLI ===
 - script: |
     echo "🔵 Installing Java 17 and SonarScanner CLI"
     sudo apt-get update
@@ -15,17 +14,15 @@ steps:
     unzip sonar-scanner-cli-5.0.1.3006-linux.zip
     export PATH=$(pwd)/sonar-scanner-5.0.1.3006-linux/bin:$PATH
 
-    echo "🔵 Checking token value (should be masked): $SONAR_TOKEN"
+    echo "🔵 Checking token: $(SONAR_TOKEN)"
 
     sonar-scanner \
       -Dsonar.projectKey=simple-cicd-demo \
       -Dsonar.projectName=simple-cicd-demo \
       -Dsonar.sources=. \
       -Dsonar.host.url=http://3.83.69.81:9000 \
-      -Dsonar.login=$SONAR_TOKEN
+      -Dsonar.login=$(SONAR_TOKEN)
   displayName: 'Run SonarQube scan manually'
-  env:
-    SONAR_TOKEN: $(SONAR_TOKEN)
 
 # === Download Secure SSH Key ===
 - task: DownloadSecureFile@1
