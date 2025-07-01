@@ -18,42 +18,6 @@ stages:
     steps:
     - checkout: self
 
-    # ✅ SonarQube Setup (Community Edition compatible)
-    - task: SonarQubePrepare@5
-      inputs:
-        SonarQube: 'MySonarQubeConnection'   # Replace with your actual service connection name
-        scannerMode: 'CLI'
-        configMode: 'manual'
-        cliProjectKey: 'simple-cicd-demo'
-        cliSources: '.'
-        extraProperties: |
-          sonar.verbose=true   # Optional debug output
-          # DO NOT ADD sonar.branch.name here (not supported in Community Edition)
-
-    # ✅ Run SonarQube Analysis
-    - task: SonarQubeAnalyze@5
-
-    # ✅ Publish SonarQube Results
-    - task: SonarQubePublish@5
-      inputs:
-        pollingTimeoutSec: '300'
-
-    # ✅ Copy files to EC2 (Destination)
-    - task: CopyFilesOverSSH@0
-      inputs:
-        sshEndpoint: 'ec2-dest-ssh'         # Replace with your EC2 SSH service connection name
-        sourceFolder: '$(Build.SourcesDirectory)'
-        contents: '**/*'
-        targetFolder: '/var/www/html'
-        cleanTargetFolder: true
-        overwrite: true
-      displayName: 'Copy files to EC2 destination'
-
-    # ✅ Restart Apache on EC2
-    - task: SSH@0
-      inputs:
-        sshEndpoint: 'ec2-dest-ssh'
-        runOptions: 'commands'
-        commands: |
-          sudo systemctl restart httpd
-      displayName: 'Restart Apache on EC2'
+    # Optional: Show file structure for debugging
+    - script: |
+        echo "=== W
