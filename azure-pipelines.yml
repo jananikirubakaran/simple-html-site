@@ -18,31 +18,41 @@ stages:
     steps:
     - checkout: self
 
-    # Clean previous SonarQube scanner workspace to avoid stale data
+    # Install Java 17 manually
+    - script: |
+        sudo apt-get update
+        sudo apt-get install -y openjdk-17-jdk
+        java -version
+      displayName: 'Install and verify Java 17'
+
+    # Check sonar-scanner version
+    - script: sonar-scanner --version
+      displayName: 'Check SonarScanner version'
+
+    # Clean SonarQube scanner workspace
     - script: |
         rm -rf .sonar .scannerwork
       displayName: 'Clean SonarQube Scanner workspace'
 
-    # Show files to verify sources are present
+    # List workspace files
     - script: |
         echo "=== Workspace file tree ==="
         ls -lR
       displayName: 'List workspace files'
 
-    # SonarQube prepare with debug logging and branch name disabled (Community Edition)
+    # SonarQube prepare
     - task: SonarQubePrepare@5
       inputs:
-        SonarQube: 'MySonarQubeConnection'   # Replace with your SonarQube service connection name
+        SonarQube: 'MySonarQubeConnection'
         scannerMode: 'CLI'
         configMode: 'manual'
         cliProjectKey: 'simple-cicd-demo'
         cliSources: '.'
         extraProperties: |
           sonar.verbose=true
-          sonar.log.level=DEBUG
           sonar.branch.name=
 
-    # Run SonarQube analysis
+    # SonarQube analysis
     - task: SonarQubeAnalyze@5
       displayName: 'Run SonarQube Analysis'
 
@@ -52,10 +62,10 @@ stages:
         pollingTimeoutSec: '300'
       displayName: 'Publish SonarQube Results'
 
-    # Copy files to EC2 destination instance
+    # Copy files to EC2 destination
     - task: CopyFilesOverSSH@0
       inputs:
-        sshEndpoint: 'ec2-dest-ssh'         # Replace with your EC2 SSH service connection name
+        sshEndpoint: 'ec2-dest-ssh'
         sourceFolder: '$(Build.SourcesDirectory)'
         contents: '**/*'
         targetFolder: '/var/www/html'
@@ -63,7 +73,7 @@ stages:
         overwrite: true
       displayName: 'Copy files to EC2 destination'
 
-    # Restart Apache on EC2 after deployment
+    # Restart Apache on EC2
     - task: SSH@0
       inputs:
         sshEndpoint: 'ec2-dest-ssh'
