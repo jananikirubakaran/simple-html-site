@@ -8,6 +8,7 @@ pool:
   vmImage: 'ubuntu-latest'
 
 steps:
+# === Prepare SonarQube Analysis ===
 - task: SonarQubePrepare@5
   inputs:
     SonarQube: 'MySonarQubeConnection'
@@ -15,22 +16,28 @@ steps:
     configMode: 'manual'
     cliProjectKey: 'simple-cicd-demo'
     cliProjectName: 'simple-cicd-demo'
+    jdkversion: 'JAVA_HOME_17_X64'
     extraProperties: |
       sonar.sources=.
+      # Disable branch scanning for Community Edition
       sonar.branch.name=
 
+# === Run SonarQube Analysis ===
 - task: SonarQubeAnalyze@5
 
+# === Publish SonarQube Results ===
 - task: SonarQubePublish@5
   inputs:
     pollingTimeoutSec: '300'
 
+# === Download Secure SSH Key ===
 - task: DownloadSecureFile@1
   name: GetSSHKey
   inputs:
     secureFile: 'app.pem'
 
+# === Copy Files to Destination EC2 ===
 - script: |
     chmod 600 $(GetSSHKey.secureFilePath)
     scp -o StrictHostKeyChecking=no -i $(GetSSHKey.secureFilePath) *.html ec2-user@<DEST_INST_IP>:/var/www/html/
-  displayName: 'Copy files to EC2 via SSH'
+  displayName: 'Deploy files to EC2 via SSH'
